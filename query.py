@@ -1,17 +1,19 @@
 import duckdb
 cursor = duckdb.connect()
 
-print(cursor.execute("SELECT * FROM parquet_schema('outdir.parq')").df())
+parq_file = 'output.parq'
+
+print(cursor.execute(f"SELECT * FROM parquet_schema('{parq_file}')").df())
 
 print("--------")
-cursor.execute("CREATE VIEW cdx AS SELECT * FROM read_parquet('outdir.parq');")
+cursor.execute(f"CREATE VIEW cdx AS SELECT * FROM read_parquet('{parq_file}');")
 
 print("--------")
-print(cursor.execute("SELECT * FROM cdx WHERE statuscode > 200 LIMIT 10").df())
+print(cursor.execute("SELECT original,statuscode,count(*) FROM cdx WHERE statuscode > 200 GROUP BY original,statuscode ORDER BY count(*) DESC LIMIT 10").df())
 
 print("--------")
-print(cursor.execute("SELECT statuscode,count(cdx.offset) FROM cdx GROUP BY statuscode").df())
+print(cursor.execute("SELECT statuscode,count(*) FROM cdx GROUP BY statuscode ORDER BY count(*) DESC").df())
 
 print("--------")
-df = cursor.execute("SELECT mimetype,count(cdx.offset) FROM cdx GROUP BY mimetype").df()
+df = cursor.execute("SELECT mimetype,count(*) FROM cdx GROUP BY mimetype ORDER BY count(*) DESC").df()
 print(df)

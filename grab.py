@@ -3,6 +3,7 @@
 # https://www.webarchive.org.uk/api/mementos/cdx?url=http%3A%2F%2Fportico.bl.uk%2F&matchType=prefix&sort=default&limit=10
 
 
+import os
 import requests
 import fastparquet
 import pandas as pd
@@ -22,11 +23,15 @@ KEYS = [
 ]
 
 
-def append(data):
+def append(data, outfile = 'output.parq'):
     df = pd.DataFrame(columns=KEYS, data=data)
     print("Writing...")
-    fastparquet.write('outdir.parq', df, #row_group_offsets=[0, 10000, 20000],
-      compression='GZIP')#, file_scheme='hive')
+    if os.path.isfile(outfile):
+        append = True
+    else:
+        append = False
+    fastparquet.write(outfile, df, #row_group_offsets=[0, 10000, 20000],
+      compression='GZIP', append=append)#, file_scheme='hive')
 
 
 def stream():
