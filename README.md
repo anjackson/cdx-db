@@ -30,3 +30,7 @@ Which looks like:
 
  - What is the SQL dialect? 
  - How does this compare with plain text and with OutbackCDX index sizes?
+
+## Dead URL Scanner
+
+This repository also contains an experimental dead URL identification procedure.
