@@ -24,6 +24,7 @@ def scan_prefix(prefix):
         print(json.dumps(hit))
     stats = {
         'class': 'prefix-stats',
+        'prefix': prefix,
         'num_records': scanner.num_records, 
         'num_urls': scanner.num_urls, 
         'num_html_records': scanner.num_html_records, 
