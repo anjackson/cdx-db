@@ -27,7 +27,7 @@ def scan_prefix(prefix):
         'prefix': prefix,
         'num_records': scanner.num_records, 
         'num_urls': scanner.num_urls, 
-        'num_html_records': scanner.num_html_records, 
+        'num_ok_records': scanner.num_ok_records, 
         'num_html_urls': scanner.num_html_urls, 
         'num_dead_urls': scanner.num_dead_urls
     }

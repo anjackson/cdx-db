@@ -67,13 +67,14 @@ class DeadURLScanner():
     total_bytes = {}
     num_records = {}
     num_urls = {}
-    num_html_records = {}
+    num_ok_records = {}
     num_html_urls = {}
     num_dead_urls = {}
 
-    def __init__(self, prefix, cdx_service=CDX_API) -> None:
+    def __init__(self, prefix, cdx_service=CDX_API, scan_limit=100_000_000) -> None:
         self.prefix = prefix
         self.cdx_service = cdx_service
+        self.scan_limit = scan_limit
 
     def scan(self):
         # Count records for logging progress:
@@ -83,34 +84,51 @@ class DeadURLScanner():
         # Keep track of the last 200 HTML URL:
         url_ok = None
         # Scan URLs under the prefix:
-        for cdx in cdx_scan(self.prefix, cdx_service=self.cdx_service, limit=100_000_000):
+        for cdx in cdx_scan(self.prefix, cdx_service=self.cdx_service, limit=self.scan_limit):
             year = cdx.timestamp[0:4]
-            self.num_records[year] = self.num_html_records.get(year, 0) + 1
+            self.num_records[year] = self.num_records.get(year, 0) + 1
             self.total_bytes[year] = self.total_bytes.get(year, 0) + int(cdx.length)
 
-            # Count unique records
-            if url_last is None or cdx.original != url_last.original:
+            # Count unique URLs:
+            if url_last is None or cdx.urlkey != url_last.urlkey:
                 # Starting a new URL:
                 self.num_urls[year] = self.num_urls.get(year, 0) + 1
             url_last = cdx
 
+            # Count all 200s:
             if cdx.statuscode == '200':
-                if 'html' in cdx.mimetype:
-                    if url_ok is None or cdx.original != url_ok.original:
+                # Count 200 records:
+                self.num_ok_records[year] = self.num_ok_records.get(year, 0) + 1
+
+            # Spotting URLs that die is tricky as e.g. https redirects are on the same urlkey, and sometimes the URLs come back.
+            # Therefore, we really want the first 200 for each URL, and then the last record that matches it based on the original URL
+
+            # If there is a url_ok, then we need to track the last exact matching one:
+            if url_ok:
+                # There's an exact match, or a key match that's not a redirect and so is probably correct (not a redirect or broken result):
+                if url_ok.original == cdx.original or (url_ok.urlkey == cdx.urlkey and int(int(cdx.statuscode)/100) != 3 and cdx.statuscode != '0'):
+                    url_ok_last = cdx
+                # But if we've moved on, we need record the result and clear for a rescan:
+                elif url_ok.urlkey != cdx.urlkey:
+                    # Record the outcome - what was a 200 is now...
+                    if url_ok_last.statuscode != '200': # in ['404', '410', '451']:
+                        yield (url_ok_last, url_ok)
+                        # Count dead URLs
+                        self.num_dead_urls[year] = self.num_dead_urls.get(year, 0) + 1
+                    # Clear the current URL:
+                    url_ok = None
+                    url_ok_last = None
+
+            # But if we don't have a first URL (url_ok), so we search for one:
+            if url_ok == None:
+                if cdx.statuscode == '200':
+                    if 'html' in cdx.mimetype:
                         # Starting a new URL:
                         self.num_html_urls[year] = self.num_html_urls.get(year, 0) + 1
                         # Update to record the first OK URL
                         url_ok = cdx
-                    # Count 200 HTML records:
-                    self.num_html_records[year] = self.num_html_records.get(year, 0) + 1
-            #elif int(int(cdx.statuscode)/100) == 4: # mostly interested in 404 but considering 4xx - too many 403?!?
-            elif cdx.statuscode in ['404', '410', '451']:
-                if url_ok and cdx.original == url_ok.original:
-                    yield (cdx, url_ok)
-                    # Drop the OK so we don't add the same URL many times:
-                    url_ok = None
-                    # Count dead URLs
-                    self.num_dead_urls[year] = self.num_dead_urls.get(year, 0) + 1
+                        url_ok_last = cdx
+                    
             # Report status occasionally:
             record_counter += 1
             if record_counter%100000 == 0:
