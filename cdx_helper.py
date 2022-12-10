@@ -103,10 +103,15 @@ class DeadURLScanner():
             # Spotting URLs that die is tricky as e.g. https redirects are on the same urlkey, and sometimes the URLs come back.
             # Therefore, we really want the first 200 for each URL, and then the last record that matches it based on the original URL
 
+            # Skip records with unset status code:
+            if cdx.statuscode == '0':
+                # This seems to be older revisits with no headers, so this is slightly inaccurate:
+                continue
+
             # If there is a url_ok, then we need to track the last exact matching one:
             if url_ok:
-                # There's an exact match, or a key match that's not a redirect and so is probably correct (not a redirect or broken result):
-                if url_ok.original == cdx.original or (url_ok.urlkey == cdx.urlkey and int(int(cdx.statuscode)/100) != 3 and cdx.statuscode != '0'):
+                # There's an exact match, or a key match that's not a redirect and so is probably correct (not a redirect):
+                if url_ok.original == cdx.original or (url_ok.urlkey == cdx.urlkey and int(int(cdx.statuscode)/100) != 3):
                     url_ok_last = cdx
                 # But if we've moved on, we need record the result and clear for a rescan:
                 elif url_ok.urlkey != cdx.urlkey:
