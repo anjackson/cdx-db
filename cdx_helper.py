@@ -118,8 +118,9 @@ class DeadURLScanner():
                     # Record the outcome - what was a 200 is now...
                     if url_ok_last.statuscode != '200': # in ['404', '410', '451']:
                         yield (url_ok_last, url_ok)
-                        # Count dead URLs
-                        self.num_dead_urls[year] = self.num_dead_urls.get(year, 0) + 1
+                        # Count dead URLs, but ignore redirects as these are usually fine:
+                        if int(int(url_ok_last.statuscode)/100) != 3:
+                            self.num_dead_urls[year] = self.num_dead_urls.get(year, 0) + 1
                     # Clear the current URL:
                     url_ok = None
                     url_ok_last = None
