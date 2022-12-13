@@ -44,7 +44,11 @@ def cdx_query(url, cdx_service=ACCESS_CDX, limit=25, sort='reverse', from_ts=Non
     r = requests.get(cdx_service, params = p, stream=True )
     if r.status_code == 200:
         for line in r.iter_lines(decode_unicode=True):
-            cdx = CDX11(line)
+            try:
+                cdx = CDX11(line)
+            except ValueError as e:
+                logger.exception(f"Exception when parsing line: {line}",e)
+                raise e
             yield cdx
     elif r.status_code != 404:
         print("ERROR! %s" % r)
