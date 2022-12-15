@@ -10,8 +10,12 @@ CDX_API = "https://www.webarchive.org.uk/api/mementos/cdx"
 
 class CDX11():    
     def __init__(self, line):
-        self.urlkey, self.timestamp, self.original, self.mimetype, self.statuscode, \
-        self.digest, self.redirecturl, self.robotflags, self.length, self.offset, self.filename = line.split(' ')
+        try:
+            self.urlkey, self.timestamp, self.original, self.mimetype, self.statuscode, \
+            self.digest, self.redirecturl, self.robotflags, self.length, self.offset, self.filename = line.split(' ')
+        except ValueError as e:
+            logger.exception(f"Exception when parsing line: {line}",e)
+            raise Exception(f"Could not parse line: {line}")
 
     def __str__(self):
         return ' '.join([self.urlkey, self.timestamp, self.original, self.mimetype, self.statuscode, \
@@ -44,11 +48,7 @@ def cdx_query(url, cdx_service=ACCESS_CDX, limit=25, sort='reverse', from_ts=Non
     r = requests.get(cdx_service, params = p, stream=True )
     if r.status_code == 200:
         for line in r.iter_lines(decode_unicode=True):
-            try:
-                cdx = CDX11(line)
-            except ValueError as e:
-                logger.exception(f"Exception when parsing line: {line}",e)
-                raise e
+            cdx = CDX11(line)
             yield cdx
     elif r.status_code != 404:
         print("ERROR! %s" % r)
@@ -59,7 +59,7 @@ def cdx_scan(url, cdx_service=ACCESS_CDX, limit=10000):
     r = requests.get(cdx_service, params = p, stream=True )
     if r.status_code == 200:
         for line in r.iter_lines(decode_unicode=True):
-            cdx = CDX11(line)
+            dx = CDX11(line)
             yield cdx
     elif r.status_code != 404:
         print("ERROR! %s" % r)
