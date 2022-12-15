@@ -59,7 +59,7 @@ def cdx_scan(url, cdx_service=ACCESS_CDX, limit=10000):
     r = requests.get(cdx_service, params = p, stream=True )
     if r.status_code == 200:
         for line in r.iter_lines(decode_unicode=True):
-            dx = CDX11(line)
+            cdx = CDX11(line)
             yield cdx
     elif r.status_code != 404:
         print("ERROR! %s" % r)
