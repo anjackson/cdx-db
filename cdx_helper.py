@@ -67,18 +67,18 @@ def cdx_scan(url, cdx_service=ACCESS_CDX, limit=10000):
 
 
 class DeadURLScanner():
-    # Setup accumulators
-    total_bytes = {}
-    num_records = {}
-    num_urls = {}
-    num_ok_records = {}
-    num_html_urls = {}
-    num_dead_urls = {}
 
     def __init__(self, prefix, cdx_service=CDX_API, scan_limit=100_000_000) -> None:
         self.prefix = prefix
         self.cdx_service = cdx_service
         self.scan_limit = scan_limit
+        # Setup accumulators
+        self.total_bytes = {}
+        self.num_records = {}
+        self.num_urls = {}
+        self.num_ok_records = {}
+        self.num_html_urls = {}
+        self.num_dead_urls = {}
 
     def scan(self):
         # Count records for logging progress:
