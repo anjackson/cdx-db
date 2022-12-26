@@ -11,17 +11,20 @@ logger = logging.getLogger(__name__)
 
 def scan_prefix(prefix):
     scanner = DeadURLScanner(prefix)
-    for ded, ok in scanner.scan():
-        hit = {
-            'class': 'dead-url',
-            'prefix': prefix,
-            'url': ded.original,
-            'first_ts': ok.timestamp,
-            'first_status': ok.statuscode,
-            'dead_ts': ded.timestamp,
-            'dead_status': ded.statuscode
-        }
-        print(json.dumps(hit))
+    for ok, last_ok, last_no_ok in scanner.scan():
+        #print(ok, last_ok, last_no_ok)
+        ded = last_no_ok
+        if ded:
+            hit = {
+                'class': 'dead-url',
+                'prefix': prefix,
+                'url': ded.original,
+                'first_ts': ok.timestamp,
+                'first_status': ok.statuscode,
+                'dead_ts': ded.timestamp,
+                'dead_status': ded.statuscode
+            }
+            print(json.dumps(hit))
     stats = {
         'class': 'prefix-stats',
         'prefix': prefix,

@@ -53,7 +53,7 @@ def cdx_query(url, cdx_service=ACCESS_CDX, limit=25, sort='reverse', from_ts=Non
     elif r.status_code != 404:
         print("ERROR! %s" % r)
 
-def cdx_scan(url, cdx_service=ACCESS_CDX, limit=10000):
+def cdx_scan(url, cdx_service=ACCESS_CDX, limit=1_000_000):
     p = { 'url' : url, 'limit': limit, 'matchType': 'prefix' }
     # Call:
     r = requests.get(cdx_service, params = p, stream=True )
@@ -85,8 +85,13 @@ class DeadURLScanner():
         record_counter = 0
         # Keep track of the current URL line:
         url_last = None
-        # Keep track of the last 200 HTML URL:
+        # Keep track of the first 200 HTML URL:
         url_ok = None
+        # Keep track of the last 200 HTML URL:
+        url_ok_last = None
+        # Keep track of the first not-200 HTML URL:
+        url_no_ok = None
+
         # Scan URLs under the prefix:
         for cdx in cdx_scan(self.prefix, cdx_service=self.cdx_service, limit=self.scan_limit):
             year = cdx.timestamp[0:4]
@@ -96,7 +101,7 @@ class DeadURLScanner():
             # Count unique URLs:
             if url_last is None or cdx.urlkey != url_last.urlkey:
                 # Starting a new URL:
-                self.num_urls[year] = self.num_urls.get(year, 0) + 1
+                self.num_urls[year] = self.num_urls.get(year, 0) + 1 
             url_last = cdx
 
             # Count all 200s:
@@ -114,20 +119,26 @@ class DeadURLScanner():
 
             # If there is a url_ok, then we need to track the last exact matching one:
             if url_ok:
-                # There's an exact match, or a key match that's not a redirect and so is probably correct (not a redirect):
-                if url_ok.original == cdx.original or (url_ok.urlkey == cdx.urlkey and int(int(cdx.statuscode)/100) != 3):
-                    url_ok_last = cdx
+                # If we're still processing the same URL, record the last 200 and first non-200 after that:
+                if url_ok.urlkey == cdx.urlkey:
+                    sc = int(int(cdx.statuscode)/100)
+                    if sc == 2:
+                        url_ok_last = cdx
+                        url_no_ok = None
+                    elif sc != 3 and url_no_ok == None:# in ['404', '410', '451']:
+                        url_no_ok = cdx
                 # But if we've moved on, we need record the result and clear for a rescan:
-                elif url_ok.urlkey != cdx.urlkey:
+                else:
                     # Record the outcome - what was a 200 is now...
-                    if url_ok_last.statuscode != '200': # in ['404', '410', '451']:
-                        yield (url_ok_last, url_ok)
+                    if url_no_ok: 
+                        yield (url_ok, url_ok_last, url_no_ok)
                         # Count dead URLs, but ignore redirects as these are usually fine:
                         if int(int(url_ok_last.statuscode)/100) != 3:
                             self.num_dead_urls[year] = self.num_dead_urls.get(year, 0) + 1
                     # Clear the current URL:
                     url_ok = None
                     url_ok_last = None
+                    url_no_ok = None
 
             # But if we don't have a first URL (url_ok), so we search for one:
             if url_ok == None:
@@ -138,9 +149,14 @@ class DeadURLScanner():
                         # Update to record the first OK URL
                         url_ok = cdx
                         url_ok_last = cdx
-                    
+                        url_no_ok = None
+
             # Report status occasionally:
             record_counter += 1
             if record_counter%100000 == 0:
                 logger.info(f"Processed {record_counter} CDX records...")
 
+        # Return the last:
+        if url_ok:
+            yield (url_ok, url_ok_last, url_no_ok)
+                    
